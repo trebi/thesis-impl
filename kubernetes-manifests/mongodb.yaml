@@ -34,3 +34,15 @@ spec:
         volumeMounts:
           - name: mongodb-storage
             mountPath: /data/db
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongodbservice
+spec:
+  type: ClusterIP
+  selector:
+    component: mongodb
+  ports:
+  - port: 27017
+    targetPort: 27017
