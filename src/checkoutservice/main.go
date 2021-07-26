@@ -273,7 +273,7 @@ func (cs *checkoutService) PlaceOrder(ctx context.Context, req *pb.PlaceOrderReq
 	return resp, nil
 }
 
-func SaveOrder(orderResult *pb.OrderResult) {
+func DBConnect() (*sql.DB) {
 	host     := os.Getenv("POSTGRES_HOST")
 	port, _  := strconv.Atoi(os.Getenv("POSTGRES_PORT"))
 	user     := os.Getenv("POSTGRES_USER")
@@ -284,12 +284,12 @@ func SaveOrder(orderResult *pb.OrderResult) {
 	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s "+
 		"password=%s dbname=%s sslmode=disable",
 		host, port, user, password, dbname)
+	var err error 
 	db, err := sql.Open("postgres", psqlInfo)
 
 	if err != nil {
 		panic(err)
 	}
-	defer db.Close()
 
 	err = db.Ping()
 	if err != nil {
@@ -297,6 +297,13 @@ func SaveOrder(orderResult *pb.OrderResult) {
 	} 
 
 	log.Infof("Successfully connected to Postgres using connection string: " + psqlInfo);
+
+	return db
+}
+
+func SaveOrder(orderResult *pb.OrderResult) {
+	db := DBConnect()
+	defer db.Close()
 
 	sqlStatement := fmt.Sprintf(`
 		INSERT INTO orders (
@@ -322,6 +329,7 @@ func SaveOrder(orderResult *pb.OrderResult) {
 
 	log.Infof("Going to execute SQL statmeemnt: " + sqlStatement);
 
+	var err error
 	_, err = db.Exec(sqlStatement)
 	if err != nil {
 		panic(err)
