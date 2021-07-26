@@ -17,6 +17,9 @@ RUN apk add --no-cache ca-certificates git
 RUN apk add build-base
 WORKDIR /src
 
+# Install GO Dpeendnecies
+RUN go get -u github.com/lib/pq
+
 # restore dependencies
 COPY go.mod go.sum ./
 RUN go mod download

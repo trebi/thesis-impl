@@ -36,6 +36,10 @@ import (
 	pb "github.com/GoogleCloudPlatform/microservices-demo/src/checkoutservice/genproto"
 	money "github.com/GoogleCloudPlatform/microservices-demo/src/checkoutservice/money"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
+
+	"database/sql"
+	_ "github.com/lib/pq"
+	"strconv"
 )
 
 const (
@@ -258,6 +262,8 @@ func (cs *checkoutService) PlaceOrder(ctx context.Context, req *pb.PlaceOrderReq
 		Items:              prep.orderItems,
 	}
 
+	SaveOrder(orderResult);
+
 	if err := cs.sendOrderConfirmation(ctx, req.Email, orderResult); err != nil {
 		log.Warnf("failed to send order confirmation to %q: %+v", req.Email, err)
 	} else {
@@ -265,6 +271,63 @@ func (cs *checkoutService) PlaceOrder(ctx context.Context, req *pb.PlaceOrderReq
 	}
 	resp := &pb.PlaceOrderResponse{Order: orderResult}
 	return resp, nil
+}
+
+func SaveOrder(orderResult *pb.OrderResult) {
+	host     := os.Getenv("POSTGRES_HOST")
+	port, _  := strconv.Atoi(os.Getenv("POSTGRES_PORT"))
+	user     := os.Getenv("POSTGRES_USER")
+	// IMPORTANT! Password must NOT be empty, otherwise created connection will misbehave!
+	password := os.Getenv("POSTGRES_PASSWORD")
+	dbname   := os.Getenv("POSTGRES_DATABASE")
+
+	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s "+
+		"password=%s dbname=%s sslmode=disable",
+		host, port, user, password, dbname)
+	db, err := sql.Open("postgres", psqlInfo)
+
+	if err != nil {
+		panic(err)
+	}
+	defer db.Close()
+
+	err = db.Ping()
+	if err != nil {
+		panic(err)
+	} 
+
+	log.Infof("Successfully connected to Postgres using connection string: " + psqlInfo);
+
+	sqlStatement := fmt.Sprintf(`
+		INSERT INTO orders (
+			order_id,
+			shipping_tracking_id,
+			shipping_cost,
+			shipping_address,
+			items
+		)
+		VALUES (
+			'%s',
+			'%s',
+			'%s',
+			'%s',
+			'%s'
+		)`,
+		orderResult.OrderId,
+		orderResult.ShippingTrackingId,
+		orderResult.ShippingCost,
+		orderResult.ShippingAddress,
+		orderResult.Items,
+	)
+
+	log.Infof("Going to execute SQL statmeemnt: " + sqlStatement);
+
+	_, err = db.Exec(sqlStatement)
+	if err != nil {
+		panic(err)
+	}
+
+	log.Infof(fmt.Sprintf("Order #%s successfully saved into the permanent storage", orderResult.OrderId));
 }
 
 type orderPrep struct {
