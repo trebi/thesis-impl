@@ -42,8 +42,10 @@ build:
     context: src/loadgenerator
   - image: adservice
     context: src/adservice
-  - image: postgres
+  - image: postgresservice
     context: src/postgresservice
+  - image: restapiservice
+    context: src/restapiservice
   tagPolicy:
     gitCommit: {}
   local:

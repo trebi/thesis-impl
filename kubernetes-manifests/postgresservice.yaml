@@ -4,7 +4,7 @@ metadata:
   name: postgres-persistent-volume-claim
 spec:
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   resources:
     requests:
       storage: 512Mi
@@ -27,8 +27,8 @@ spec:
         persistentVolumeClaim:
           claimName: postgres-persistent-volume-claim
       containers:
-      - name: postgres 
-        image: postgres
+      - name: postgres
+        image: postgresservice
         ports:
           - containerPort: 5432
         volumeMounts:

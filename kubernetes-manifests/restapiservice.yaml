@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: restapi
+spec:
+  replicas: 1
+  selector: 
+    matchLabels:
+      component: restapi
+  template:
+    metadata:
+      labels:
+        component: restapi
+    spec:
+      containers:
+        - name: server
+          image: restapiservice
+          ports:
+            - containerPort: 5000
+          env:
+            - name: POSTGRES_USER
+              value: postgres
+            - name: POSTGRES_HOST
+              value: postgresservice
+            - name: POSTGRES_PORT
+              value: '5432'
+            - name: POSTGRES_DATABASE
+              value: online_boutique
+            - name: POSTGRES_PASSWORD
+              value: any_password
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: restapiservice
+spec:
+  type: ClusterIP
+  selector:
+    component: restapi
+  ports:
+    - port: 5000
+      targetPort: 5000
