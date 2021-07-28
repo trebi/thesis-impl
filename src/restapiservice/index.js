@@ -21,16 +21,66 @@ pgClient = new Pool({
 
 // Express route handlers
 app.get("/", async (req, res) => {
-  res.send("REST API works!");
-});
-
-app.get("/date", async (req, res) => {
-  const values = pgClient.query("SELECT DATE()");
-  res.send(values.rows);
+  res.send("REST API is online!");
 });
 
 app.get("/orders", async (req, res) => {
-  const values = await pgClient.query("SELECT * FROM orders");
+  const limit = req.query.limit;
+  const offset = req.query.offset;
+
+  const values = await pgClient.query("SELECT * FROM order LIMIT $1 OFFSET $2", [ limit, offset ]);
+  res.send(values.rows);
+});
+
+app.get("/order/:id", async (req, res) => {
+  const id = req.params.id;
+
+  const values = await pgClient.query("SELECT * FROM order WHERE id=$1", [ id ]);
+  res.send(values.rows);
+});
+
+app.get("/order_items", async (req, res) => {
+  const limit = req.query.limit;
+  const offset = req.query.offset;
+
+  const values = await pgClient.query("SELECT * FROM order_item LIMIT $1 OFFSET $2", [ limit, offset ]);
+  res.send(values.rows);
+});
+
+app.get("/order_item/:id", async (req, res) => {
+  const id = req.params.id;
+
+  const values = await pgClient.query("SELECT * FROM order_item WHERE id=$1", [ id ]);
+  res.send(values.rows);
+});
+
+app.get("/shippings", async (req, res) => {
+  const limit = req.query.limit;
+  const offset = req.query.offset;
+
+  const values = await pgClient.query("SELECT * FROM shipping LIMIT $1 OFFSET $2", [ limit, offset ]);
+  res.send(values.rows);
+});
+
+app.get("/shipping/:id", async (req, res) => {
+  const id = req.params.id;
+
+  const values = await pgClient.query("SELECT * FROM shipping WHERE id=$1", [ id ]);
+  res.send(values.rows);
+});
+
+app.get("/addresses", async (req, res) => {
+  const limit = req.query.limit;
+  const offset = req.query.offset;
+
+  const values = await pgClient.query("SELECT * FROM address LIMIT $1 OFFSET $2", [ limit, offset ]);
+  res.send(values.rows);
+});
+
+app.get("/address/:id", async (req, res) => {
+  const id = req.params.id;
+
+  const values = await pgClient.query("SELECT * FROM address WHERE id=$1", [ id ]);
   res.send(values.rows);
 });
 
