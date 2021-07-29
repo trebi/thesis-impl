@@ -38,8 +38,9 @@ import (
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 
 	"database/sql"
-	_ "github.com/lib/pq"
 	"strconv"
+
+	_ "github.com/lib/pq"
 )
 
 const (
@@ -265,16 +266,23 @@ func (cs *checkoutService) PlaceOrder(ctx context.Context, req *pb.PlaceOrderReq
 	db := DBConnect()
 	defer db.Close()
 
-
 	orderId := SaveOrder(db, orderResult.OrderId, money.ToFloat64(total), total.GetCurrencyCode())
-	SaveShipping(
+	shippingId := SaveShipping(
 		db,
 		orderId,
 		orderResult.ShippingTrackingId,
 		money.RefToFloat64(orderResult.ShippingCost),
 		orderResult.ShippingCost.GetCurrencyCode())
 
-	// SaveAddress()
+	SaveAddress(
+		db,
+		shippingId,
+		orderResult.ShippingAddress.StreetAddress,
+		orderResult.ShippingAddress.City,
+		orderResult.ShippingAddress.State,
+		orderResult.ShippingAddress.ZipCode,
+		orderResult.ShippingAddress.Country)
+
 	// SaveOrderItems()
 
 	if err := cs.sendOrderConfirmation(ctx, req.Email, orderResult); err != nil {
@@ -286,13 +294,13 @@ func (cs *checkoutService) PlaceOrder(ctx context.Context, req *pb.PlaceOrderReq
 	return resp, nil
 }
 
-func DBConnect() (*sql.DB) {
-	host     := os.Getenv("POSTGRES_HOST")
-	port, _  := strconv.Atoi(os.Getenv("POSTGRES_PORT"))
-	user     := os.Getenv("POSTGRES_USER")
+func DBConnect() *sql.DB {
+	host := os.Getenv("POSTGRES_HOST")
+	port, _ := strconv.Atoi(os.Getenv("POSTGRES_PORT"))
+	user := os.Getenv("POSTGRES_USER")
 	// IMPORTANT! Password must NOT be empty, otherwise created connection will misbehave!
 	password := os.Getenv("POSTGRES_PASSWORD")
-	dbname   := os.Getenv("POSTGRES_DATABASE")
+	dbname := os.Getenv("POSTGRES_DATABASE")
 
 	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s "+
 		"password=%s dbname=%s sslmode=disable",
@@ -307,7 +315,7 @@ func DBConnect() (*sql.DB) {
 	err = db.Ping()
 	if err != nil {
 		panic(err)
-	} 
+	}
 
 	log.Infof("Successfully connected to Postgres using connection string: " + psqlInfo)
 
@@ -316,7 +324,7 @@ func DBConnect() (*sql.DB) {
 
 func SaveOrder(db *sql.DB, confirmationId string, totalAmount float64, totalCurrency string) int {
 	var id int
-	err:= db.QueryRow(
+	err := db.QueryRow(
 		fmt.Sprintf(`
 			INSERT INTO public.order (
 				confirmation_id,
@@ -341,7 +349,7 @@ func SaveOrder(db *sql.DB, confirmationId string, totalAmount float64, totalCurr
 
 func SaveShipping(db *sql.DB, orderId int, trackingId string, amount float64, currency string) int {
 	var id int
-	err:= db.QueryRow(
+	err := db.QueryRow(
 		fmt.Sprintf(`
 			INSERT INTO public.shipping (
 				order_id,
@@ -366,11 +374,38 @@ func SaveShipping(db *sql.DB, orderId int, trackingId string, amount float64, cu
 	return id
 }
 
-func SaveOrderItems() {
-	// TODO
+func SaveAddress(db *sql.DB, shippingId int, street string, city string, state string, zipCode int32, country string) int {
+	var id int
+	err := db.QueryRow(
+		fmt.Sprintf(`
+			INSERT INTO public.address (
+				shipping_id,
+				street,
+				city,
+				state,
+				zip_code,
+				country
+			)
+			VALUES (%d, '%s', '%s', '%s', '%s', '%s')
+			RETURNING id`,
+			shippingId,
+			street,
+			city,
+			state,
+			zipCode,
+			country,
+		)).Scan(&id)
+
+	if err != nil {
+		panic(err)
+	}
+
+	log.Infof(fmt.Sprintf("Address successfully saved into the permanent storage under ID %d", id))
+
+	return id
 }
 
-func SaveAddress() {
+func SaveOrderItems() {
 	// TODO
 }
 

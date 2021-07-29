@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS "public"."address" (
     "city" varchar NOT NULL,
     "state" varchar,
     "zip_code" varchar NOT NULL,
+    "country" varchar NOT NULL,
     PRIMARY KEY ("id")
 );
 
