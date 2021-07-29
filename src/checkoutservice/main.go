@@ -317,26 +317,25 @@ func DBConnect() *sql.DB {
 		panic(err)
 	}
 
-	log.Infof("Successfully connected to Postgres using connection string: " + psqlInfo)
+	log.Infof("Successfully connected to Postgres using connection string: " + strings.Replace(psqlInfo, password, "***", -1))
 
 	return db
 }
 
 func SaveOrder(db *sql.DB, confirmationId string, totalAmount float64, totalCurrency string) int {
 	var id int
-	err := db.QueryRow(
-		fmt.Sprintf(`
-			INSERT INTO public.order (
-				confirmation_id,
-				total_amount,
-				total_currency
-			)
-			VALUES ('%s', %f, '%s')
-			RETURNING id`,
-			confirmationId,
-			totalAmount,
-			totalCurrency,
-		)).Scan(&id)
+	err := db.QueryRow(`
+		INSERT INTO public.order (
+			confirmation_id,
+			total_amount,
+			total_currency
+		)
+		VALUES ($1, $2, $3)
+		RETURNING id`,
+		confirmationId,
+		totalAmount,
+		totalCurrency,
+	).Scan(&id)
 
 	if err != nil {
 		panic(err)
@@ -349,21 +348,20 @@ func SaveOrder(db *sql.DB, confirmationId string, totalAmount float64, totalCurr
 
 func SaveShipping(db *sql.DB, orderId int, trackingId string, amount float64, currency string) int {
 	var id int
-	err := db.QueryRow(
-		fmt.Sprintf(`
-			INSERT INTO public.shipping (
-				order_id,
-				tracking_id,
-				amount,
-				currency
-			)
-			VALUES (%d, '%s', %f, '%s')
-			RETURNING id`,
-			orderId,
-			trackingId,
+	err := db.QueryRow(`
+		INSERT INTO public.shipping (
+			order_id,
+			tracking_id,
 			amount,
-			currency,
-		)).Scan(&id)
+			currency
+		)
+		VALUES ($1, $2, $3, $4)
+		RETURNING id`,
+		orderId,
+		trackingId,
+		amount,
+		currency,
+	).Scan(&id)
 
 	if err != nil {
 		panic(err)
@@ -376,25 +374,24 @@ func SaveShipping(db *sql.DB, orderId int, trackingId string, amount float64, cu
 
 func SaveAddress(db *sql.DB, shippingId int, street string, city string, state string, zipCode int32, country string) int {
 	var id int
-	err := db.QueryRow(
-		fmt.Sprintf(`
-			INSERT INTO public.address (
-				shipping_id,
-				street,
-				city,
-				state,
-				zip_code,
-				country
-			)
-			VALUES (%d, '%s', '%s', '%s', '%s', '%s')
-			RETURNING id`,
-			shippingId,
+	err := db.QueryRow(`
+		INSERT INTO public.address (
+			shipping_id,
 			street,
 			city,
 			state,
-			zipCode,
-			country,
-		)).Scan(&id)
+			zip_code,
+			country
+		)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING id`,
+		shippingId,
+		street,
+		city,
+		state,
+		zipCode,
+		country,
+	).Scan(&id)
 
 	if err != nil {
 		panic(err)
