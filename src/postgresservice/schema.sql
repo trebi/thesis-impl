@@ -41,12 +41,10 @@ CREATE SEQUENCE IF NOT EXISTS order_item_id_seq;
 CREATE TABLE IF NOT EXISTS "public"."order_item" (
     "id" int4 NOT NULL DEFAULT nextval('order_item_id_seq'::regclass),
     "order_id" int4 NOT NULL,
-    "product_id" int4 NOT NULL,
+    "product_id" varchar NOT NULL,
     "cost_amount" float4 NOT NULL,
-    "cost_currency" bpchar(3) NOT NULL,
-    "quantity" float8 NOT NULL,
-    "product_name" varchar,
-    "product_description" varchar,
+    "cost_currency" char(3) NOT NULL,
+    "quantity" int4 NOT NULL,
     PRIMARY KEY ("id")
 );
 
@@ -59,7 +57,7 @@ CREATE TABLE IF NOT EXISTS "public"."shipping" (
     "order_id" int4 NOT NULL,
     "tracking_id" varchar NOT NULL,
     "amount" float4 NOT NULL,
-    "currency" bpchar(3) NOT NULL,
+    "currency" char(3) NOT NULL,
     PRIMARY KEY ("id")
 );
 

@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strings"
 	"time"
 
 	"cloud.google.com/go/profiler"
@@ -266,13 +267,20 @@ func (cs *checkoutService) PlaceOrder(ctx context.Context, req *pb.PlaceOrderReq
 	db := DBConnect()
 	defer db.Close()
 
-	orderId := SaveOrder(db, orderResult.OrderId, money.ToFloat64(total), total.GetCurrencyCode())
+	orderId := SaveOrder(
+		db,
+		orderResult.OrderId,
+		money.ToFloat64(total),
+		total.GetCurrencyCode(),
+	)
+
 	shippingId := SaveShipping(
 		db,
 		orderId,
 		orderResult.ShippingTrackingId,
 		money.RefToFloat64(orderResult.ShippingCost),
-		orderResult.ShippingCost.GetCurrencyCode())
+		orderResult.ShippingCost.GetCurrencyCode(),
+	)
 
 	SaveAddress(
 		db,
@@ -281,9 +289,19 @@ func (cs *checkoutService) PlaceOrder(ctx context.Context, req *pb.PlaceOrderReq
 		orderResult.ShippingAddress.City,
 		orderResult.ShippingAddress.State,
 		orderResult.ShippingAddress.ZipCode,
-		orderResult.ShippingAddress.Country)
+		orderResult.ShippingAddress.Country,
+	)
 
-	// SaveOrderItems()
+	for _, item := range prep.orderItems {
+		SaveOrderItem(
+			db,
+			orderId,
+			item.Item.ProductId,
+			money.RefToFloat64(item.Cost),
+			item.Cost.CurrencyCode,
+			item.Item.Quantity,
+		)
+	}
 
 	if err := cs.sendOrderConfirmation(ctx, req.Email, orderResult); err != nil {
 		log.Warnf("failed to send order confirmation to %q: %+v", req.Email, err)
@@ -402,8 +420,32 @@ func SaveAddress(db *sql.DB, shippingId int, street string, city string, state s
 	return id
 }
 
-func SaveOrderItems() {
-	// TODO
+func SaveOrderItem(db *sql.DB, orderId int, productId string, costAmount float64, costCurrency string, quantity int32) int {
+	var id int
+	err := db.QueryRow(`
+		INSERT INTO public.order_item (
+			order_id,
+			product_id,
+			cost_amount,
+			cost_currency,
+			quantity
+		)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id`,
+		orderId,
+		productId,
+		costAmount,
+		costCurrency,
+		quantity,
+	).Scan(&id)
+
+	if err != nil {
+		panic(err)
+	}
+
+	log.Infof(fmt.Sprintf("Address successfully saved into the permanent storage under ID %d", id))
+
+	return id
 }
 
 type orderPrep struct {
