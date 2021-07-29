@@ -15,10 +15,11 @@
 FROM golang:1.15-alpine as builder
 RUN apk add --no-cache ca-certificates git
 RUN apk add build-base
-WORKDIR /src
 
-# Install GO Dpeendnecies
+# Install GO dependencies / libraries
 RUN go get -u github.com/lib/pq
+
+WORKDIR /src
 
 # restore dependencies
 COPY go.mod go.sum ./

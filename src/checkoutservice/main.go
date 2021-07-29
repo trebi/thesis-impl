@@ -262,7 +262,20 @@ func (cs *checkoutService) PlaceOrder(ctx context.Context, req *pb.PlaceOrderReq
 		Items:              prep.orderItems,
 	}
 
-	SaveOrder(orderResult);
+	db := DBConnect()
+	defer db.Close()
+
+
+	orderId := SaveOrder(db, orderResult.OrderId, money.ToFloat64(total), total.GetCurrencyCode())
+	SaveShipping(
+		db,
+		orderId,
+		orderResult.ShippingTrackingId,
+		money.RefToFloat64(orderResult.ShippingCost),
+		orderResult.ShippingCost.GetCurrencyCode())
+
+	// SaveAddress()
+	// SaveOrderItems()
 
 	if err := cs.sendOrderConfirmation(ctx, req.Email, orderResult); err != nil {
 		log.Warnf("failed to send order confirmation to %q: %+v", req.Email, err)
@@ -284,7 +297,7 @@ func DBConnect() (*sql.DB) {
 	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s "+
 		"password=%s dbname=%s sslmode=disable",
 		host, port, user, password, dbname)
-	var err error 
+
 	db, err := sql.Open("postgres", psqlInfo)
 
 	if err != nil {
@@ -296,46 +309,69 @@ func DBConnect() (*sql.DB) {
 		panic(err)
 	} 
 
-	log.Infof("Successfully connected to Postgres using connection string: " + psqlInfo);
+	log.Infof("Successfully connected to Postgres using connection string: " + psqlInfo)
 
 	return db
 }
 
-func SaveOrder(orderResult *pb.OrderResult) {
-	db := DBConnect()
-	defer db.Close()
+func SaveOrder(db *sql.DB, confirmationId string, totalAmount float64, totalCurrency string) int {
+	var id int
+	err:= db.QueryRow(
+		fmt.Sprintf(`
+			INSERT INTO public.order (
+				confirmation_id,
+				total_amount,
+				total_currency
+			)
+			VALUES ('%s', %f, '%s')
+			RETURNING id`,
+			confirmationId,
+			totalAmount,
+			totalCurrency,
+		)).Scan(&id)
 
-	sqlStatement := fmt.Sprintf(`
-		INSERT INTO orders (
-			order_id,
-			shipping_tracking_id,
-			shipping_cost,
-			shipping_address,
-			items
-		)
-		VALUES (
-			'%s',
-			'%s',
-			'%s',
-			'%s',
-			'%s'
-		)`,
-		orderResult.OrderId,
-		orderResult.ShippingTrackingId,
-		orderResult.ShippingCost,
-		orderResult.ShippingAddress,
-		orderResult.Items,
-	)
-
-	log.Infof("Going to execute SQL statmeemnt: " + sqlStatement);
-
-	var err error
-	_, err = db.Exec(sqlStatement)
 	if err != nil {
 		panic(err)
 	}
 
-	log.Infof(fmt.Sprintf("Order #%s successfully saved into the permanent storage", orderResult.OrderId));
+	log.Infof(fmt.Sprintf("Order #%s successfully saved into the permanent storage under ID %d", confirmationId, id))
+
+	return id
+}
+
+func SaveShipping(db *sql.DB, orderId int, trackingId string, amount float64, currency string) int {
+	var id int
+	err:= db.QueryRow(
+		fmt.Sprintf(`
+			INSERT INTO public.shipping (
+				order_id,
+				tracking_id,
+				amount,
+				currency
+			)
+			VALUES (%d, '%s', %f, '%s')
+			RETURNING id`,
+			orderId,
+			trackingId,
+			amount,
+			currency,
+		)).Scan(&id)
+
+	if err != nil {
+		panic(err)
+	}
+
+	log.Infof(fmt.Sprintf("Shipping successfully saved into the permanent storage under ID %d", id))
+
+	return id
+}
+
+func SaveOrderItems() {
+	// TODO
+}
+
+func SaveAddress() {
+	// TODO
 }
 
 type orderPrep struct {

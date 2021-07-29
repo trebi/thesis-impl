@@ -16,6 +16,8 @@ package money
 
 import (
 	"errors"
+	"fmt"
+	"strconv"
 
 	pb "github.com/GoogleCloudPlatform/microservices-demo/src/checkoutservice/genproto"
 )
@@ -129,4 +131,16 @@ func MultiplySlow(m pb.Money, n uint32) pb.Money {
 		n--
 	}
 	return out
+}
+
+func ToFloat64(m pb.Money) float64 {
+	mFloat, _ := strconv.ParseFloat(fmt.Sprintf("%d.%d", m.GetUnits(), m.GetNanos()), 64)
+	
+	return mFloat
+}
+
+func RefToFloat64(m *pb.Money) float64 {
+	mFloat, _ := strconv.ParseFloat(fmt.Sprintf("%d.%d", m.GetUnits(), m.GetNanos()), 64)
+	
+	return mFloat
 }

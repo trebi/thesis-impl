@@ -25,62 +25,62 @@ app.get("/", async (req, res) => {
 });
 
 app.get("/orders", async (req, res) => {
-  const limit = req.query.limit;
-  const offset = req.query.offset;
+  const limit = req.query.limit ?? null;
+  const offset = req.query.offset ?? null;
 
-  const values = await pgClient.query("SELECT * FROM order LIMIT $1 OFFSET $2", [ limit, offset ]);
+  const values = await pgClient.query("SELECT * FROM public.order LIMIT $1 OFFSET $2", [ limit, offset ]);
   res.send(values.rows);
 });
 
 app.get("/order/:id", async (req, res) => {
   const id = req.params.id;
 
-  const values = await pgClient.query("SELECT * FROM order WHERE id=$1", [ id ]);
+  const values = await pgClient.query("SELECT * FROM public.order WHERE id=$1", [ id ]);
   res.send(values.rows);
 });
 
 app.get("/order_items", async (req, res) => {
-  const limit = req.query.limit;
-  const offset = req.query.offset;
+  const limit = req.query.limit ?? null;
+  const offset = req.query.offset ?? null;
 
-  const values = await pgClient.query("SELECT * FROM order_item LIMIT $1 OFFSET $2", [ limit, offset ]);
+  const values = await pgClient.query("SELECT * FROM public.order_item LIMIT $1 OFFSET $2", [ limit, offset ]);
   res.send(values.rows);
 });
 
 app.get("/order_item/:id", async (req, res) => {
   const id = req.params.id;
 
-  const values = await pgClient.query("SELECT * FROM order_item WHERE id=$1", [ id ]);
+  const values = await pgClient.query("SELECT * FROM public.order_item WHERE id=$1", [ id ]);
   res.send(values.rows);
 });
 
 app.get("/shippings", async (req, res) => {
-  const limit = req.query.limit;
-  const offset = req.query.offset;
+  const limit = req.query.limit ?? null;
+  const offset = req.query.offset ?? null;
 
-  const values = await pgClient.query("SELECT * FROM shipping LIMIT $1 OFFSET $2", [ limit, offset ]);
+  const values = await pgClient.query("SELECT * FROM public.shipping LIMIT $1 OFFSET $2", [ limit, offset ]);
   res.send(values.rows);
 });
 
 app.get("/shipping/:id", async (req, res) => {
   const id = req.params.id;
 
-  const values = await pgClient.query("SELECT * FROM shipping WHERE id=$1", [ id ]);
+  const values = await pgClient.query("SELECT * FROM public.shipping WHERE id=$1", [ id ]);
   res.send(values.rows);
 });
 
 app.get("/addresses", async (req, res) => {
-  const limit = req.query.limit;
-  const offset = req.query.offset;
+  const limit = req.query.limit ?? null;
+  const offset = req.query.offset ?? null;
 
-  const values = await pgClient.query("SELECT * FROM address LIMIT $1 OFFSET $2", [ limit, offset ]);
+  const values = await pgClient.query("SELECT * FROM public.address LIMIT $1 OFFSET $2", [ limit, offset ]);
   res.send(values.rows);
 });
 
 app.get("/address/:id", async (req, res) => {
   const id = req.params.id;
 
-  const values = await pgClient.query("SELECT * FROM address WHERE id=$1", [ id ]);
+  const values = await pgClient.query("SELECT * FROM public.address WHERE id=$1", [ id ]);
   res.send(values.rows);
 });
 
