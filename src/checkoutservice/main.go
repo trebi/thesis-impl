@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strings"
 	"time"
 
 	"cloud.google.com/go/profiler"
@@ -36,6 +37,11 @@ import (
 	pb "github.com/GoogleCloudPlatform/microservices-demo/src/checkoutservice/genproto"
 	money "github.com/GoogleCloudPlatform/microservices-demo/src/checkoutservice/money"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
+
+	"database/sql"
+	"strconv"
+
+	_ "github.com/lib/pq"
 )
 
 const (
@@ -258,6 +264,45 @@ func (cs *checkoutService) PlaceOrder(ctx context.Context, req *pb.PlaceOrderReq
 		Items:              prep.orderItems,
 	}
 
+	db := DBConnect()
+	defer db.Close()
+
+	orderId := SaveOrder(
+		db,
+		orderResult.OrderId,
+		money.ToFloat64(total),
+		total.GetCurrencyCode(),
+	)
+
+	shippingId := SaveShipping(
+		db,
+		orderId,
+		orderResult.ShippingTrackingId,
+		money.RefToFloat64(orderResult.ShippingCost),
+		orderResult.ShippingCost.GetCurrencyCode(),
+	)
+
+	SaveAddress(
+		db,
+		shippingId,
+		orderResult.ShippingAddress.StreetAddress,
+		orderResult.ShippingAddress.City,
+		orderResult.ShippingAddress.State,
+		orderResult.ShippingAddress.ZipCode,
+		orderResult.ShippingAddress.Country,
+	)
+
+	for _, item := range prep.orderItems {
+		SaveOrderItem(
+			db,
+			orderId,
+			item.Item.ProductId,
+			money.RefToFloat64(item.Cost),
+			item.Cost.CurrencyCode,
+			item.Item.Quantity,
+		)
+	}
+
 	if err := cs.sendOrderConfirmation(ctx, req.Email, orderResult); err != nil {
 		log.Warnf("failed to send order confirmation to %q: %+v", req.Email, err)
 	} else {
@@ -265,6 +310,142 @@ func (cs *checkoutService) PlaceOrder(ctx context.Context, req *pb.PlaceOrderReq
 	}
 	resp := &pb.PlaceOrderResponse{Order: orderResult}
 	return resp, nil
+}
+
+func DBConnect() *sql.DB {
+	host := os.Getenv("POSTGRES_HOST")
+	port, _ := strconv.Atoi(os.Getenv("POSTGRES_PORT"))
+	user := os.Getenv("POSTGRES_USER")
+	// IMPORTANT! Password must NOT be empty, otherwise created connection will misbehave!
+	password := os.Getenv("POSTGRES_PASSWORD")
+	dbname := os.Getenv("POSTGRES_DATABASE")
+
+	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s "+
+		"password=%s dbname=%s sslmode=disable",
+		host, port, user, password, dbname)
+
+	db, err := sql.Open("postgres", psqlInfo)
+
+	if err != nil {
+		panic(err)
+	}
+
+	err = db.Ping()
+	if err != nil {
+		panic(err)
+	}
+
+	log.Infof("Successfully connected to Postgres using connection string: " + strings.Replace(psqlInfo, password, "***", -1))
+
+	return db
+}
+
+func SaveOrder(db *sql.DB, confirmationId string, totalAmount float64, totalCurrency string) int {
+	var id int
+	err := db.QueryRow(`
+		INSERT INTO public.order (
+			confirmation_id,
+			total_amount,
+			total_currency
+		)
+		VALUES ($1, $2, $3)
+		RETURNING id`,
+		confirmationId,
+		totalAmount,
+		totalCurrency,
+	).Scan(&id)
+
+	if err != nil {
+		panic(err)
+	}
+
+	log.Infof(fmt.Sprintf("Order #%s successfully saved into the permanent storage under ID %d", confirmationId, id))
+
+	return id
+}
+
+func SaveShipping(db *sql.DB, orderId int, trackingId string, amount float64, currency string) int {
+	var id int
+	err := db.QueryRow(`
+		INSERT INTO public.shipping (
+			order_id,
+			tracking_id,
+			amount,
+			currency
+		)
+		VALUES ($1, $2, $3, $4)
+		RETURNING id`,
+		orderId,
+		trackingId,
+		amount,
+		currency,
+	).Scan(&id)
+
+	if err != nil {
+		panic(err)
+	}
+
+	log.Infof(fmt.Sprintf("Shipping successfully saved into the permanent storage under ID %d", id))
+
+	return id
+}
+
+func SaveAddress(db *sql.DB, shippingId int, street string, city string, state string, zipCode int32, country string) int {
+	var id int
+	err := db.QueryRow(`
+		INSERT INTO public.address (
+			shipping_id,
+			street,
+			city,
+			state,
+			zip_code,
+			country
+		)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING id`,
+		shippingId,
+		street,
+		city,
+		state,
+		zipCode,
+		country,
+	).Scan(&id)
+
+	if err != nil {
+		panic(err)
+	}
+
+	log.Infof(fmt.Sprintf("Address successfully saved into the permanent storage under ID %d", id))
+
+	return id
+}
+
+func SaveOrderItem(db *sql.DB, orderId int, productId string, costAmount float64, costCurrency string, quantity int32) int {
+	var id int
+	err := db.QueryRow(`
+		INSERT INTO public.order_item (
+			order_id,
+			product_id,
+			cost_amount,
+			cost_currency,
+			quantity
+		)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id`,
+		orderId,
+		productId,
+		costAmount,
+		costCurrency,
+		quantity,
+	).Scan(&id)
+
+	if err != nil {
+		panic(err)
+	}
+
+	log.Infof(fmt.Sprintf("Address successfully saved into the permanent storage under ID %d", id))
+
+	return id
 }
 
 type orderPrep struct {

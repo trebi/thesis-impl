@@ -15,6 +15,10 @@
 FROM golang:1.15-alpine as builder
 RUN apk add --no-cache ca-certificates git
 RUN apk add build-base
+
+# Install GO dependencies / libraries
+RUN go get -u github.com/lib/pq
+
 WORKDIR /src
 
 # restore dependencies

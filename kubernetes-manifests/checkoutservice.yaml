@@ -52,6 +52,16 @@ spec:
             value: "currencyservice:7000"
           - name: CART_SERVICE_ADDR
             value: "cartservice:7070"
+          - name: POSTGRES_HOST
+            value: "postgresservice"
+          - name: POSTGRES_PORT
+            value: "5432"
+          - name: POSTGRES_USER
+            value: "postgres"
+          - name: POSTGRES_PASSWORD
+            value: "any_password"
+          - name: POSTGRES_DATABASE
+            value: "online_boutique"
           # - name: DISABLE_STATS
           #   value: "1"
           # - name: DISABLE_TRACING
